@@ -3,6 +3,7 @@ using System;
 using BusReservation.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace BusReservationApi.Migrations
 {
     [DbContext(typeof(BusReservationDbContext))]
-    partial class BusReservationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260730105405_AddPassengerConcurrency")]
+    partial class AddPassengerConcurrency
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

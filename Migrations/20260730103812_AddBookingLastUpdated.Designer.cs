@@ -3,6 +3,7 @@ using System;
 using BusReservation.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace BusReservationApi.Migrations
 {
     [DbContext(typeof(BusReservationDbContext))]
-    partial class BusReservationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260730103812_AddBookingLastUpdated")]
+    partial class AddBookingLastUpdated
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -36,7 +39,7 @@ namespace BusReservationApi.Migrations
                     b.Property<int>("BusRouteId")
                         .HasColumnType("integer");
 
-                    b.Property<DateTime>("LastUpdated")
+                    b.Property<DateTime>("Last Updated")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("PassengerId")
@@ -98,7 +101,7 @@ namespace BusReservationApi.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
-                    b.Property<DateTime>("LastUpdated")
+                    b.Property<DateTime>("Last Updated")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("PassengerCode")
@@ -108,12 +111,6 @@ namespace BusReservationApi.Migrations
                     b.Property<string>("PhoneNumber")
                         .IsRequired()
                         .HasColumnType("text");
-
-                    b.Property<uint>("Version")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("xid")
-                        .HasColumnName("xmin");
 
                     b.HasKey("Id");
 

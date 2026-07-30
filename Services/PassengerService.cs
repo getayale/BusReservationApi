@@ -10,21 +10,25 @@ public class PassengerService(
 {
 
     // GET ALL PASSENGERS WITH PAGINATION
-    public async Task<IReadOnlyList<PassengerDto>> GetAllAsync(int page)
-    {
-        const int pageSize = 20;
+   public async Task<IReadOnlyList<PassengerDto>> GetAllAsync(int page)
+{
+    const int pageSize = 20;
 
-        var passengers = await context.passengers
-            .OrderBy(p => p.FullName)              // Stable sorting
-            .Skip((page - 1) * pageSize)           // Skip previous pages
-            .Take(pageSize)                        // Take current page
-            .ToListAsync();
-
-
-        return passengers
-            .Select(MapToDto)
-            .ToList();
-    }
+    return await context.passengers
+        .AsNoTracking()
+        .OrderBy(p => p.FullName)
+        .Skip((page - 1) * pageSize)
+        .Take(pageSize)
+        .Select(p => new PassengerDto(
+            p.Id,
+            p.PassengerCode,
+            p.FullName,
+            p.PhoneNumber,
+            p.IsActive,
+            p.Bookings.Count
+        ))
+        .ToListAsync();
+}
 
 
 
@@ -70,31 +74,31 @@ public class PassengerService(
 
 
     // UPDATE PASSENGER
-    public async Task<bool> UpdateAsync(
-        int id,
-        UpdatePassengerDto dto)
+   public async Task<bool> UpdateAsync(
+    int id,
+    UpdatePassengerDto dto)
+{
+    var passenger = await context.passengers
+        .FirstOrDefaultAsync(p => p.Id == id);
+
+    if (passenger == null)
+        return false;
+
+    passenger.FullName = dto.FullName;
+    passenger.PhoneNumber = dto.PhoneNumber;
+    passenger.IsActive = dto.IsActive;
+
+    try
     {
-
-        var passenger = await context.passengers
-            .FirstOrDefaultAsync(p => p.Id == id);
-
-
-        if (passenger == null)
-            return false;
-
-
-        passenger.FullName = dto.FullName;
-        passenger.PhoneNumber = dto.PhoneNumber;
-        passenger.IsActive = dto.IsActive;
-
-
         await context.SaveChangesAsync();
-
-
         return true;
     }
-
-
+    catch (DbUpdateConcurrencyException)
+    {
+        throw new Exception(
+            "This passenger was modified by another user. Please reload and try again.");
+    }
+}
 
 
     // DELETE PASSENGER
@@ -123,29 +127,25 @@ public class PassengerService(
 
     // GROUP BY + COUNT
     // Top 5 routes by booking count
-    public async Task<IReadOnlyList<RouteBookingSummaryDto>>
-        GetTopRoutesAsync()
-    {
+   public async Task<IReadOnlyList<RouteBookingSummaryDto>> GetTopRoutesAsync()
+{
+    var data = await context.bookings
+        .GroupBy(b => b.BusRoute.RouteCode)
+        .Select(g => new
+        {
+            RouteCode = g.Key,
+            TotalBookings = g.Count()
+        })
+        .OrderByDescending(x => x.TotalBookings)
+        .Take(5)
+        .ToListAsync();
 
-        var result = await context.bookings
-
-            .GroupBy(b => b.BusRoute.RouteCode)
-
-            .Select(g => new RouteBookingSummaryDto(
-                g.Key,
-                g.Count()
-            ))
-
-            .OrderByDescending(x => x.TotalBookings)
-
-            .Take(5)
-
-            .ToListAsync();
-
-
-        return result;
-    }
-
+    return data
+        .Select(x => new RouteBookingSummaryDto(
+            x.RouteCode,
+            x.TotalBookings))
+        .ToList();
+}
 
 
 
@@ -183,7 +183,8 @@ public class PassengerService(
             passenger.PassengerCode,
             passenger.FullName,
             passenger.PhoneNumber,
-            passenger.IsActive
+            passenger.IsActive,
+            passenger.Bookings.Count
         );
     }
 }

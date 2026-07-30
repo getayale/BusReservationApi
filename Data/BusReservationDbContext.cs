@@ -6,6 +6,36 @@ public class BusReservationDbContext(
     : DbContext(options){
   public DbSet<Passenger> passengers=>Set<Passenger>();
   public DbSet<BusRoute> busRoutes=>Set<BusRoute>();
-  public DbSet<Booking> bookings=>Set<Booking>();      
+  public DbSet<Booking> bookings=>Set<Booking>();
+
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+        modelBuilder.Entity<Passenger>()
+        .Property<DateTime>("LastUpdated");
+     modelBuilder.Entity<Passenger>()
+    .Property(p => p.Version)
+    .IsRowVersion();
+        modelBuilder.Entity<Booking>()
+        .Property<DateTime>("LastUpdated");
+      
+    }
+  
+ public override async Task<int> SaveChangesAsync(
+    CancellationToken cancellationToken = default)
+{
+    foreach (var entry in ChangeTracker.Entries())
+    {
+        if ((entry.Entity is Passenger || entry.Entity is Booking) &&
+            (entry.State == EntityState.Added ||
+             entry.State == EntityState.Modified))
+        {
+            entry.Property("LastUpdated").CurrentValue = DateTime.UtcNow;
+        }
+    }
+
+    return await base.SaveChangesAsync(cancellationToken);
+}
     
 }
