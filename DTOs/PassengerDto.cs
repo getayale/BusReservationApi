@@ -5,4 +5,5 @@ public record PassengerDto(
     string PassengerCode,
     string FullName,
     string PhoneNumber,
-    bool IsActive);
+    bool IsActive,
+    int BookingCount);
