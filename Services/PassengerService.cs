@@ -46,7 +46,13 @@ public class PassengerService(
         return MapToDto(passenger);
     }
 
-
+public async Task<bool> PassengerCodeExistsAsync(
+    string passengerCode)
+{
+    return await context.passengers
+        .AsNoTracking()
+        .AnyAsync(p => p.PassengerCode == passengerCode);
+}
 
     // CREATE PASSENGER
     public async Task<PassengerDto> CreateAsync(
@@ -113,7 +119,7 @@ public class PassengerService(
             return false;
 
 
-        context.passengers.Remove(passenger);
+       passenger.IsDeleted=true;
 
 
         await context.SaveChangesAsync();
@@ -122,7 +128,22 @@ public class PassengerService(
         return true;
     }
 
-
+public async Task<IReadOnlyList<PassengerDto>> GetDeletedAsync()
+{
+    return await context.passengers
+        .IgnoreQueryFilters()
+        .Where(p => p.IsDeleted)
+        .AsNoTracking()
+        .Select(p => new PassengerDto(
+            p.Id,
+            p.PassengerCode,
+            p.FullName,
+            p.PhoneNumber,
+            p.IsActive,
+            p.Bookings.Count
+        ))
+        .ToListAsync();
+}
 
 
     // GROUP BY + COUNT
@@ -187,4 +208,15 @@ public class PassengerService(
             passenger.Bookings.Count
         );
     }
+    public async Task<int> ArchiveInactivePassengersAsync()
+{
+    var affectedRows = await context.passengers
+        .Where(p => !p.IsActive && !p.IsArchived)
+        .ExecuteUpdateAsync(setters =>
+            setters.SetProperty(
+                p => p.IsArchived,
+                true));
+
+    return affectedRows;
+}
 }

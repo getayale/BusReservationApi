@@ -27,9 +27,21 @@ public class PassengersController(IPassengerService passengerService) : Controll
         return Ok(passenger);
     }  
 
-  [HttpPost]
+     [HttpPost]
   public async Task<IActionResult> Create(CreatePassengerDto dto)
     {
+
+        var exists=await passengerService.PassengerCodeExistsAsync(dto.PassengerCode);
+        if (exists)
+        {
+            return Conflict (new ProblemDetails
+            {
+                 Title = "Passenger code already exists",
+            Detail =
+                $"Passenger with code '{dto.PassengerCode}' is already registered.",
+            Status = StatusCodes.Status409Conflict
+            });
+        }
         var passenger= await passengerService.CreateAsync(dto);
         return CreatedAtAction(
             nameof(GetById),
@@ -38,6 +50,20 @@ public class PassengersController(IPassengerService passengerService) : Controll
         );
         
     }  
+    [HttpGet("deleted")]
+public async Task<IActionResult> GetDeleted()
+{
+    var passengers = await passengerService.GetDeletedAsync();
+
+    if (!passengers.Any())
+    {
+        return NotFound("No deleted passengers found.");
+    }
+
+    return Ok(passengers);
+}
+
+ 
 
     [HttpPut("{id:int}")]
  public async Task<IActionResult> Update(int id,UpdatePassengerDto dto)
@@ -71,4 +97,20 @@ public class PassengersController(IPassengerService passengerService) : Controll
         var routes=await passengerService.GetTopRoutesAsync();
            return Ok(routes);
     }
+    [HttpPost("archive-inactive")]
+public async Task<IActionResult> ArchiveInactive()
+{
+    var count = await passengerService.ArchiveInactivePassengersAsync();
+
+    if (count == 0)
+    {
+        return NotFound("No inactive passengers found.");
+    }
+
+    return Ok(new
+    {
+        Message = "Passengers archived successfully",
+        ArchivedCount = count
+    });
+}
 }

@@ -8,13 +8,24 @@ public interface IPassengerService
 
     Task<PassengerDto?> GetByIdAsync(int id);
 
-    Task<PassengerDto> CreateAsync(CreatePassengerDto dto);
+    Task<IReadOnlyList<PassengerDto>> GetDeletedAsync();
+
+
+    Task<bool> PassengerCodeExistsAsync(
+        string passengerCode);
+
+
+    Task<PassengerDto> CreateAsync(
+        CreatePassengerDto dto);
+
 
     Task<bool> UpdateAsync(
         int id,
         UpdatePassengerDto dto);
 
-    Task<bool> DeleteAsync(int id);
+
+    Task<bool> DeleteAsync(
+        int id);
 
 
     Task<IReadOnlyList<RouteBookingSummaryDto>>
@@ -23,4 +34,7 @@ public interface IPassengerService
 
     Task<PassengerStatisticsDto>
         GetStatisticsAsync();
+
+
+    Task<int> ArchiveInactivePassengersAsync();
 }
