@@ -9,18 +9,13 @@ public class BusReservationDbContext(
   public DbSet<Booking> bookings=>Set<Booking>();
 
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
-    {
-        base.OnModelCreating(modelBuilder);
-        modelBuilder.Entity<Passenger>()
-        .Property<DateTime>("LastUpdated");
-     modelBuilder.Entity<Passenger>()
-    .Property(p => p.Version)
-    .IsRowVersion();
-        modelBuilder.Entity<Booking>()
-        .Property<DateTime>("LastUpdated");
-      
-    }
+  protected override void OnModelCreating(ModelBuilder modelBuilder)
+{
+    base.OnModelCreating(modelBuilder);
+
+    modelBuilder.ApplyConfigurationsFromAssembly(
+        typeof(BusReservationDbContext).Assembly);
+}
   
  public override async Task<int> SaveChangesAsync(
     CancellationToken cancellationToken = default)
