@@ -3,6 +3,7 @@ using System;
 using BusReservation.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace BusReservationApi.Migrations
 {
     [DbContext(typeof(BusReservationDbContext))]
-    partial class BusReservationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260731070503_AddPassengerSoftDelete")]
+    partial class AddPassengerSoftDelete
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -44,8 +47,7 @@ namespace BusReservationApi.Migrations
 
                     b.Property<string>("SeatNumber")
                         .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("character varying(10)");
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
@@ -64,28 +66,22 @@ namespace BusReservationApi.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<int>("Capacity")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Departure")
                         .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
+                        .HasColumnType("text");
 
                     b.Property<string>("Destination")
                         .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<int>("MaxCapacity")
-                        .HasColumnType("integer");
+                        .HasColumnType("text");
 
                     b.Property<string>("RouteCode")
                         .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("RouteCode")
-                        .IsUnique();
 
                     b.ToTable("busRoutes");
                 });
@@ -100,15 +96,9 @@ namespace BusReservationApi.Migrations
 
                     b.Property<string>("FullName")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                        .HasColumnType("text");
 
                     b.Property<bool>("IsActive")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(true);
-
-                    b.Property<bool>("IsArchived")
                         .HasColumnType("boolean");
 
                     b.Property<bool>("IsDeleted")
@@ -119,13 +109,11 @@ namespace BusReservationApi.Migrations
 
                     b.Property<string>("PassengerCode")
                         .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
+                        .HasColumnType("text");
 
                     b.Property<string>("PhoneNumber")
                         .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
+                        .HasColumnType("text");
 
                     b.Property<uint>("Version")
                         .IsConcurrencyToken()
@@ -135,9 +123,6 @@ namespace BusReservationApi.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("PassengerCode")
-                        .IsUnique();
-
                     b.ToTable("passengers");
                 });
 
@@ -146,13 +131,13 @@ namespace BusReservationApi.Migrations
                     b.HasOne("BusReservation.Api.Entities.BusRoute", "BusRoute")
                         .WithMany("Bookings")
                         .HasForeignKey("BusRouteId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("BusReservation.Api.Entities.Passenger", "Passenger")
                         .WithMany("Bookings")
                         .HasForeignKey("PassengerId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("BusRoute");
