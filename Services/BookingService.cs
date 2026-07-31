@@ -1,88 +1,177 @@
-using Microsoft.Extensions.Logging;
-
+using Microsoft.EntityFrameworkCore;
+using BusReservation.Api.Data;
+using BusReservation.Api.DTOs;
+using BusReservation.Api.Entities;
+using Microsoft.AspNetCore.Mvc;
 
 namespace BusReservation.Api.Services;
-public class BookingService : IBookingService
+
+
+
+public class BookingService(BusReservationDbContext context)
+    : IBookingService
 {
-     private readonly Dictionary<string, BookingRecord> _store = new();
-       private readonly ILogger<BookingService> _logger;
-        public BookingService(ILogger<BookingService> logger)
+    public async Task<IReadOnlyList<BookingDto>> GetAllAsync()
     {
-        _logger = logger;
+        return await context.bookings
+            .AsNoTracking()
+            .Include(b => b.Passenger)
+            .Include(b => b.BusRoute)
+            .OrderByDescending(b => b.BookedAt)
+            .Select(b => new BookingDto(
+    b.Id,
+    b.PassengerId,
+    b.Passenger.FullName,
+    b.BusRouteId,
+    b.BusRoute.RouteCode,
+    b.SeatNumber,
+    b.BookedAt
+))
+            .ToListAsync();
     }
 
-    public Task<BookingRecord> CreateAsync(string passengerId,string routeCode)
+    public async Task<BookingDto?> GetByIdAsync(int id)
     {
-        var existing=_store.Values.FirstOrDefault(b=>b.PassengerId==passengerId&&
-        b.RouteCode==routeCode);
-        if(existing is not null)
-        {
-              _logger.LogWarning(
-                "Duplicate booking attempt {PassengerId} already booked {RouteCode} (Booking {BookingId})",
-                passengerId,
-                routeCode,
-                existing.Id);
+        return await context.bookings
+            .AsNoTracking()
+            .Include(b => b.Passenger)
+            .Include(b => b.BusRoute)
+            .Where(b => b.Id == id)
+            .Select(b => new BookingDto(
+    b.Id,
+    b.PassengerId,
+    b.Passenger.FullName,
+    b.BusRouteId,
+    b.BusRoute.RouteCode,
+    b.SeatNumber,
+    b.BookedAt
+))
+            .FirstOrDefaultAsync();
+    }
 
-            return Task.FromResult(existing);
-        }
-        var id=Guid.NewGuid().ToString("N")[..7];
-        var booking=new BookingRecord(
-            id,
-            passengerId,
-            routeCode,
-            DateTime.UtcNow
+    public async Task<BookingDto> CreateAsync(CreateBookingDto dto)
+    {
+        var booking = new Booking
+        {
+            PassengerId = dto.PassengerId,
+            BusRouteId = dto.BusRouteId,
+            SeatNumber = dto.SeatNumber
+        };
+
+        context.bookings.Add(booking);
+
+        await context.SaveChangesAsync();
+
+        await context.Entry(booking)
+            .Reference(b => b.Passenger)
+            .LoadAsync();
+
+        await context.Entry(booking)
+            .Reference(b => b.BusRoute)
+            .LoadAsync();
+
+        return MapToDto(booking);
+    }
+
+    public async Task<bool> UpdateAsync(
+        int id,
+        UpdateBookingDto dto)
+    {
+        var booking = await context.bookings
+            .FirstOrDefaultAsync(b => b.Id == id);
+
+        if (booking is null)
+            return false;
+
+        booking.SeatNumber = dto.SeatNumber;
+
+        await context.SaveChangesAsync();
+
+        return true;
+    }
+
+    public async Task<bool> DeleteAsync(int id)
+    {
+        var booking = await context.bookings
+            .FirstOrDefaultAsync(b => b.Id == id);
+
+        if (booking is null)
+            return false;
+
+        context.bookings.Remove(booking);
+
+        await context.SaveChangesAsync();
+
+        return true;
+    }
+
+    public async Task<bool> BookingExistsAsync(
+        int passengerId,
+        int busRouteId)
+    {
+        return await context.bookings
+            .AsNoTracking()
+            .AnyAsync(b =>
+                b.PassengerId == passengerId &&
+                b.BusRouteId == busRouteId);
+    }
+
+    public async Task<bool> SeatAlreadyBookedAsync(
+        int busRouteId,
+        string seatNumber)
+    {
+        return await context.bookings
+            .AsNoTracking()
+            .AnyAsync(b =>
+                b.BusRouteId == busRouteId &&
+                b.SeatNumber == seatNumber);
+    }
+
+    public async Task<bool> RouteExistsAsync(int busRouteId)
+    {
+        return await context.busRoutes
+            .AsNoTracking()
+            .AnyAsync(r => r.Id == busRouteId);
+    }
+
+    public async Task<bool> PassengerExistsAsync(int passengerId)
+    {
+        return await context.passengers
+            .AsNoTracking()
+            .AnyAsync(p => p.Id == passengerId);
+    }
+
+    public async Task<bool> RouteIsFullAsync(int busRouteId)
+    {
+        var route = await context.busRoutes
+            .AsNoTracking()
+            .Select(r => new
+            {
+                r.Id,
+                r.MaxCapacity
+            })
+            .FirstOrDefaultAsync(r => r.Id == busRouteId);
+
+        if (route is null)
+            return false;
+
+        var bookingCount = await context.bookings
+            .AsNoTracking()
+            .CountAsync(b => b.BusRouteId == busRouteId);
+
+        return bookingCount >= route.MaxCapacity;
+    }
+
+    private static BookingDto MapToDto(Booking booking)
+    {
+        return new BookingDto(
+            booking.Id,
+            booking.PassengerId,
+            booking.Passenger.FullName,
+            booking.BusRouteId,
+            booking.BusRoute.RouteCode,
+            booking.SeatNumber,
+            booking.BookedAt
         );
-        _store[id]=booking;
-         _logger.LogInformation(
-            "Created booking {BookingId} for passenger {PassengerId} on route {RouteCode}",
-            id,
-            passengerId,
-            routeCode);
-
-        return Task.FromResult(booking);
-    }
-
-
-    public Task<BookingRecord?>GetByIdAsync(string id)
-    {
-        _store.TryGetValue(id,out var booking);
-        if(booking is null)
-        {
-              _logger.LogWarning(
-                "Booking {BookingId} not found",
-                id);
-        }
-         return Task.FromResult(booking);
-    }
-
-      public Task<IReadOnlyList<BookingRecord>> GetAllAsync()
-    {
-        IReadOnlyList<BookingRecord> bookings = _store.Values.ToList();
-
-        return Task.FromResult(bookings);
-    }
-     public Task<bool> CancelAsync(string id)
-    {
-        var removed = _store.Remove(id);
-
-        if (removed)
-        {
-            _logger.LogInformation(
-                "Cancelled booking {BookingId}",
-                id);
-        }
-        else
-        {
-            _logger.LogWarning(
-                "Cancel failed. Booking {BookingId} not found",
-                id);
-        }
-
-        return Task.FromResult(removed);
     }
 }
-public record BookingRecord(
-    string Id,
-    string PassengerId,
-    string RouteCode,
-    DateTime CreatedAt);
