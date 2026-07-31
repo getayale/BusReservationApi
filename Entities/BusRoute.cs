@@ -15,7 +15,7 @@ public class BusRoute
     public required string Destination { get; set; }
 
     // Maximum passengers
-    public int Capacity { get; set; }
+    public int MaxCapacity { get; set; }
 
     // One route can have many bookings
     public ICollection<Booking> Bookings { get; set; } = new List<Booking>();
