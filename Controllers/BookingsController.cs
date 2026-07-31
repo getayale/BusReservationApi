@@ -1,57 +1,135 @@
-using Microsoft.AspNetCore.Mvc;
+using BusReservation.Api.DTOs;
 using BusReservation.Api.Services;
+using Microsoft.AspNetCore.Mvc;
 
 namespace BusReservation.Api.Controllers;
+
 [ApiController]
-[Route("api/bookings")]
-
-
-public class BookingsController(IBookingService bookingService):ControllerBase
+[Route("api/[controller]")]
+public class BookingsController(IBookingService service) : ControllerBase
 {
     [HttpGet]
- public async Task<IActionResult> GetAll()
+    public async Task<IActionResult> GetAll()
     {
-        var bookings=await bookingService.GetAllAsync();
+        var bookings = await service.GetAllAsync();
+
         return Ok(bookings);
-    }   
-    [HttpGet("{id}")]
-  public async Task<IActionResult> GetById(string id)
+    }
+
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetById(int id)
     {
-        var booking=await bookingService.GetByIdAsync(id);
-            if (booking is null)
+        var booking = await service.GetByIdAsync(id);
+
+        if (booking is null)
         {
-            return NotFound();
+            return NotFound(new ProblemDetails
+            {
+                Title = "Booking not found",
+                Detail = $"Booking with id {id} was not found.",
+                Status = StatusCodes.Status404NotFound
+            });
         }
 
-
         return Ok(booking);
-    } 
+    }
 
-  [HttpPost]
-  public async Task<IActionResult> Create([FromBody] CreateBookingRequest request)
+    [HttpPost]
+    public async Task<IActionResult> Create(CreateBookingDto dto)
     {
-          var booking = await bookingService.CreateAsync(
-            request.PassengerId,
-            request.RouteCode);
+        if (!await service.PassengerExistsAsync(dto.PassengerId))
+        {
+            return NotFound(new ProblemDetails
+            {
+                Title = "Passenger not found",
+                Detail = $"Passenger with id {dto.PassengerId} was not found.",
+                Status = StatusCodes.Status404NotFound
+            });
+        }
 
+        if (!await service.RouteExistsAsync(dto.BusRouteId))
+        {
+            return NotFound(new ProblemDetails
+            {
+                Title = "Route not found",
+                Detail = $"Route with id {dto.BusRouteId} was not found.",
+                Status = StatusCodes.Status404NotFound
+            });
+        }
+
+        if (await service.BookingExistsAsync(dto.PassengerId, dto.BusRouteId))
+        {
+            return Conflict(new ProblemDetails
+            {
+                Title = "Booking already exists",
+                Detail = "This passenger has already booked this route.",
+                Status = StatusCodes.Status409Conflict
+            });
+        }
+
+        if (await service.SeatAlreadyBookedAsync(dto.BusRouteId, dto.SeatNumber))
+        {
+            return Conflict(new ProblemDetails
+            {
+                Title = "Seat already booked",
+                Detail = $"Seat '{dto.SeatNumber}' has already been booked.",
+                Status = StatusCodes.Status409Conflict
+            });
+        }
+
+        if (await service.RouteIsFullAsync(dto.BusRouteId))
+        {
+            return Conflict(new ProblemDetails
+            {
+                Title = "Route is full",
+                Detail = "This route has reached its maximum capacity.",
+                Status = StatusCodes.Status409Conflict
+            });
+        }
+
+        var booking = await service.CreateAsync(dto);
 
         return CreatedAtAction(
             nameof(GetById),
             new { id = booking.Id },
-            booking); 
+            booking);
     }
-     [HttpDelete("{id}")]
-    public async Task<IActionResult> Delete(string id)
+
+    [HttpPut("{id:int}")]
+    public async Task<IActionResult> Update(
+        int id,
+        UpdateBookingDto dto)
     {
-        var deleted = await bookingService.CancelAsync(id);
+        var updated = await service.UpdateAsync(id, dto);
 
-        return deleted
-            ? NoContent()
-            : NotFound();
+        if (!updated)
+        {
+            return NotFound(new ProblemDetails
+            {
+                Title = "Booking not found",
+                Detail = $"Booking with id {id} was not found.",
+                Status = StatusCodes.Status404NotFound
+            });
+        }
+
+        return NoContent();
     }
-     
 
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var deleted = await service.DeleteAsync(id);
+
+        if (!deleted)
+        {
+            return NotFound(new ProblemDetails
+            {
+                Title = "Booking not found",
+                Detail = $"Booking with id {id} was not found.",
+                Status = StatusCodes.Status404NotFound
+            });
+        }
+
+        return NoContent();
+    }
 }
-public record CreateBookingRequest(
-    string PassengerId,
-    string RouteCode);
